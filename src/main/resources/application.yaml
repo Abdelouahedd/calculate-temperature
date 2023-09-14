@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: javafx-app
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/temperature
+      username: root
+      password: secret
