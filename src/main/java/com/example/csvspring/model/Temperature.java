@@ -32,8 +32,8 @@ public class Temperature {
     @Convert(converter = ConverterTemp.class)
     private LinkedList<Double> lowTemperatures = new LinkedList<>();
 
-    //@Transient
-    // private LinkedList<Double> avgTemperatures = new LinkedList<>();
+    @Transient
+    private LinkedList<Double> avgTemperatures = new LinkedList<>();
 
     @Override
     public String toString() {

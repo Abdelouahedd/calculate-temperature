@@ -79,65 +79,70 @@ public class UiController {
 
             if (!rows.isEmpty()) {
                 int numColumns = rows.get(0).length;
+                int numDays = (numColumns - 5) / 2; // Calculate the number of days
 
-                for (int columnIndex = 0; columnIndex < numColumns; columnIndex++) {
-                    if (columnIndex == 0) {
-                        TableColumn<ObservableList<String>, String> column = new TableColumn<>("Station_ID_code");
-                        final int colIndex = columnIndex;
+                // Add columns for Station_ID_code, Weather_ID_code, Station_SiteName, Year, and Month
+                for (int columnIndex = 0; columnIndex < 5; columnIndex++) {
+                    switch (columnIndex) {
+                        case 0 -> {
+                            TableColumn<ObservableList<String>, String> column = new TableColumn<>("Station_ID_code");
+                            final int colIndex = columnIndex;
 
-                        column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
+                            column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
 
-                        tableView.getColumns().add(column);
-                    } else if (columnIndex == 1) {
-                        TableColumn<ObservableList<String>, String> column = new TableColumn<>("Weather_ID_code");
-                        final int colIndex = columnIndex;
+                            tableView.getColumns().add(column);
+                        }
+                        case 1 -> {
+                            TableColumn<ObservableList<String>, String> column = new TableColumn<>("Weather_ID_code");
+                            final int colIndex = columnIndex;
 
-                        column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
+                            column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
 
-                        tableView.getColumns().add(column);
-                    } else if (columnIndex == 2) {
-                        TableColumn<ObservableList<String>, String> column = new TableColumn<>("Station_SiteName");
-                        final int colIndex = columnIndex;
+                            tableView.getColumns().add(column);
+                        }
+                        case 2 -> {
+                            TableColumn<ObservableList<String>, String> column = new TableColumn<>("Station_SiteName");
+                            final int colIndex = columnIndex;
 
-                        column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
+                            column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
 
-                        tableView.getColumns().add(column);
-                    } else if (columnIndex == 3) {
-                        TableColumn<ObservableList<String>, String> column = new TableColumn<>("Year");
-                        final int colIndex = columnIndex;
+                            tableView.getColumns().add(column);
+                        }
+                        case 3 -> {
+                            TableColumn<ObservableList<String>, String> column = new TableColumn<>("Year");
+                            final int colIndex = columnIndex;
 
-                        column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
+                            column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
 
-                        tableView.getColumns().add(column);
-                    } else if (columnIndex == 4) {
-                        TableColumn<ObservableList<String>, String> column = new TableColumn<>("Month");
-                        final int colIndex = columnIndex;
+                            tableView.getColumns().add(column);
+                        }
+                        default -> {
+                            TableColumn<ObservableList<String>, String> column = new TableColumn<>("Month");
+                            final int colIndex = columnIndex;
 
-                        column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
+                            column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
 
-                        tableView.getColumns().add(column);
-                    } else {
-                        int i = columnIndex - 4;
-                        if (i % 2 != 0) {
-                            TableColumn<ObservableList<String>, String> columnHigh = new TableColumn<>("High" + i);
-                            final int colIndexHigh = columnIndex;
-
-                            columnHigh.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndexHigh)));
-
-                            tableView.getColumns().add(columnHigh);
-                        } else {
-
-                            TableColumn<ObservableList<String>, String> columnLow = new TableColumn<>("Low" + i);
-                            final int colIndexLow = columnIndex;
-
-                            columnLow.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndexLow)));
-
-                            tableView.getColumns().add(columnLow);
+                            tableView.getColumns().add(column);
                         }
                     }
                 }
 
-                // Add data to the table
+                // Add columns for High and Low temperatures for each day
+                for (int day = 1; day <= numDays; day++) {
+                    TableColumn<ObservableList<String>, String> columnHigh = new TableColumn<>("High" + day);
+                    final int colIndexHigh = 4 + (day - 1) * 2; // Calculate the index for High temperature
+
+                    columnHigh.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndexHigh)));
+                    tableView.getColumns().add(columnHigh);
+
+                    TableColumn<ObservableList<String>, String> columnLow = new TableColumn<>("Low" + day);
+                    final int colIndexLow = colIndexHigh + 1; // Calculate the index for Low temperature
+
+                    columnLow.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndexLow)));
+                    tableView.getColumns().add(columnLow);
+                }
+
+                // Add data to the table (skip the header row)
                 for (String[] row : rows) {
                     ObservableList<String> observableRow = FXCollections.observableArrayList(row);
                     tableView.getItems().add(observableRow);
@@ -146,30 +151,6 @@ public class UiController {
         }
     }
 
-    // Method to get all data from the TableView
-    private void getAllDataFromTableView() {
-        for (ObservableList<String> row : tableView.getItems()) {
-            Temperature temperature = new Temperature();
-            for (int i = 5; i < row.size(); i++) {
-                temperature.setStationId(Long.parseLong(row.get(0)));
-                temperature.setWhetherId(row.get(1));
-                temperature.setStationName(row.get(2));
-                temperature.setYear(Long.parseLong(row.get(3)));
-                temperature.setMonth(Long.parseLong(row.get(4)));
-
-                if (i % 2 != 0) {
-                    if (!row.get(i).isEmpty() && !row.get(i).equals(" ")) {
-                        temperature.getHighTemperatures().add(Double.parseDouble(row.get(i)));
-                    }
-                } else {
-                    if (!row.get(i).isEmpty() && !row.get(i).equals(" ")) {
-                        temperature.getLowTemperatures().add(Double.parseDouble(row.get(i)));
-                    }
-                }
-            }
-            temperatures.add(temperature);
-        }
-    }
 
     public void handleDragOver(DragEvent event) {
         Dragboard db = event.getDragboard();
