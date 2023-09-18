@@ -15,6 +15,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.TransferMode;
 import javafx.stage.FileChooser;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +37,8 @@ import java.util.Map;
 @Component
 @Slf4j
 public class UiController {
-
+    @FXML
+    public  TextField bp;
     @FXML
     public Button saveButton;
     @Autowired
@@ -181,12 +183,6 @@ public class UiController {
         event.consume();
     }
 
-    private <T> TableColumn<T, ?> getTableColumnByName(TableView<T> tableView, String name, int index) {
-        for (TableColumn<T, ?> col : tableView.getColumns())
-            if (col.getText().equalsIgnoreCase(name))
-                return col.getColumns().get(index);
-        return null;
-    }
 
     public void saveData() {
         JobParameter<?> jobParameter = new JobParameter<>(filePathField.getText(), String.class);
@@ -204,13 +200,22 @@ public class UiController {
                  JobExecutionAlreadyRunningException e) {
             log.error(e.getMessage(), e);
         }
-
-        // this.getAllDataFromTableView();
-        //temperatures.forEach(temperature -> log.info(temperature.toString()));
     }
 
     @FXML
     public void onSaveButtonClick(ActionEvent actionEvent) {
         saveData();
+    }
+
+    @FXML
+    public void onBPChange(KeyEvent actionEvent) {
+        actionEvent.consume();
+        bp.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue.matches("\\d*")) {
+                int value = Integer.parseInt(newValue);
+            } else {
+                bp.setText(oldValue);
+            }
+        });
     }
 }

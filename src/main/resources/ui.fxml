@@ -19,6 +19,12 @@
         <TextArea fx:id="dropAreaLabel" disable="true" text="Drag and Drop files here" wrapText="true"/>
     </VBox>
 
+    <HBox spacing="10" GridPane.columnIndex="0" GridPane.rowIndex="2">
+        <Label text="BP" GridPane.columnIndex="0"/>
+        <TextField fx:id="bp"  GridPane.columnIndex="1" text="65" onKeyPressed="#onBPChange" />
+        <Button fx:id="saveButton" onAction="#onSaveButtonClick" text="Save" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+    </HBox>
+
     <TableView fx:id="tableView" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
     <padding>
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
@@ -32,5 +38,6 @@
         <RowConstraints/>
         <RowConstraints/>
     </rowConstraints>
-    <Button fx:id="saveButton" onAction="#onSaveButtonClick" text="Save" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+
+
 </GridPane>
