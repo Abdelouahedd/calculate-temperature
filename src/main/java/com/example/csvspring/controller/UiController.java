@@ -29,10 +29,7 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Component
 @Slf4j
@@ -188,6 +185,7 @@ public class UiController {
         JobParameter<?> jobParameter = new JobParameter<>(filePathField.getText(), String.class);
         Map<String, JobParameter<?>> params = new HashMap<>();
         params.put("file", jobParameter);
+        params.put("id", new JobParameter<>(UUID.randomUUID().toString(),String.class));
         JobParameters jobParameters = new JobParameters(params);
         try {
             JobExecution jobExecution = jobService.launchJob(job, jobParameters);
