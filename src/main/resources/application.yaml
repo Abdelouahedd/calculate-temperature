@@ -1,8 +1,27 @@
 spring:
   application:
     name: javafx-app
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/temperature
-      username: root
-      password: secret
+  datasource:
+    url: jdbc:postgresql://localhost:5432/temperature
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  batch:
+    jdbc:
+      initialize-schema: always
+      platform: postgresql
+    job:
+      enabled: true
+logging:
+  level:
+    org:
+      springframework:
+        batch: DEBUG

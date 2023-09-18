@@ -1,9 +1,10 @@
 package com.example.csvspring.controller;
 
+import com.example.csvspring.model.Temperature;
+import com.example.csvspring.service.JobService;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
@@ -16,24 +17,40 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.stage.FileChooser;
-import javafx.util.Callback;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.*;
+import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
+import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
+import org.springframework.batch.core.repository.JobRestartException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @Slf4j
 public class UiController {
+
     @FXML
     public Button saveButton;
+    @Autowired
+    private JobService jobService;
+    @Autowired
+    private Job job;
     @FXML
     private TextField filePathField;
     @FXML
     private TableView<ObservableList<String>> tableView;
+
+    private File csvFile;
+
+    private List<Temperature> temperatures = new LinkedList<>();
 
     @FXML
     public void onBrowseButtonClick() {
@@ -41,7 +58,7 @@ public class UiController {
         fileChooser.setTitle("Open CSV file");
         fileChooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("CSV Files", "*.csv"), new FileChooser.ExtensionFilter("All Files", "*.*"));
         File selectedFile = fileChooser.showOpenDialog(null);
-
+        csvFile = selectedFile;
         if (selectedFile != null) {
             filePathField.setText(selectedFile.getAbsolutePath());
             try {
@@ -64,60 +81,59 @@ public class UiController {
                 int numColumns = rows.get(0).length;
 
                 for (int columnIndex = 0; columnIndex < numColumns; columnIndex++) {
-                    if(columnIndex == 0){
+                    if (columnIndex == 0) {
                         TableColumn<ObservableList<String>, String> column = new TableColumn<>("Station_ID_code");
                         final int colIndex = columnIndex;
 
                         column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
 
                         tableView.getColumns().add(column);
-                    }
-                    else if(columnIndex == 1){
+                    } else if (columnIndex == 1) {
                         TableColumn<ObservableList<String>, String> column = new TableColumn<>("Weather_ID_code");
                         final int colIndex = columnIndex;
 
                         column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
 
                         tableView.getColumns().add(column);
-                    }
-                    else if(columnIndex == 2){
+                    } else if (columnIndex == 2) {
                         TableColumn<ObservableList<String>, String> column = new TableColumn<>("Station_SiteName");
                         final int colIndex = columnIndex;
 
                         column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
 
                         tableView.getColumns().add(column);
-                    }
-                    else if(columnIndex == 3){
+                    } else if (columnIndex == 3) {
                         TableColumn<ObservableList<String>, String> column = new TableColumn<>("Year");
                         final int colIndex = columnIndex;
 
                         column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
 
                         tableView.getColumns().add(column);
-                    }
-                    else if(columnIndex == 4){
+                    } else if (columnIndex == 4) {
                         TableColumn<ObservableList<String>, String> column = new TableColumn<>("Month");
                         final int colIndex = columnIndex;
 
                         column.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
 
                         tableView.getColumns().add(column);
-                    }else{
+                    } else {
                         int i = columnIndex - 4;
-                        TableColumn<ObservableList<String>, String> columnHigh = new TableColumn<>("High" + i);
-                        final int colIndexHigh = columnIndex;
+                        if (i % 2 != 0) {
+                            TableColumn<ObservableList<String>, String> columnHigh = new TableColumn<>("High" + i);
+                            final int colIndexHigh = columnIndex;
 
-                        columnHigh.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndexHigh)));
+                            columnHigh.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndexHigh)));
 
-                        tableView.getColumns().add(columnHigh);
+                            tableView.getColumns().add(columnHigh);
+                        } else {
 
-                        TableColumn<ObservableList<String>, String> columnLow = new TableColumn<>("Low" + i);
-                        final int colIndexLow = columnIndex;
+                            TableColumn<ObservableList<String>, String> columnLow = new TableColumn<>("Low" + i);
+                            final int colIndexLow = columnIndex;
 
-                        columnLow.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndexLow)));
+                            columnLow.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndexLow)));
 
-                        tableView.getColumns().add(columnLow);
+                            tableView.getColumns().add(columnLow);
+                        }
                     }
                 }
 
@@ -127,6 +143,31 @@ public class UiController {
                     tableView.getItems().add(observableRow);
                 }
             }
+        }
+    }
+
+    // Method to get all data from the TableView
+    private void getAllDataFromTableView() {
+        for (ObservableList<String> row : tableView.getItems()) {
+            Temperature temperature = new Temperature();
+            for (int i = 5; i < row.size(); i++) {
+                temperature.setStationId(Long.parseLong(row.get(0)));
+                temperature.setWhetherId(row.get(1));
+                temperature.setStationName(row.get(2));
+                temperature.setYear(Long.parseLong(row.get(3)));
+                temperature.setMonth(Long.parseLong(row.get(4)));
+
+                if (i % 2 != 0) {
+                    if (!row.get(i).isEmpty() && !row.get(i).equals(" ")) {
+                        temperature.getHighTemperatures().add(Double.parseDouble(row.get(i)));
+                    }
+                } else {
+                    if (!row.get(i).isEmpty() && !row.get(i).equals(" ")) {
+                        temperature.getLowTemperatures().add(Double.parseDouble(row.get(i)));
+                    }
+                }
+            }
+            temperatures.add(temperature);
         }
     }
 
@@ -167,9 +208,24 @@ public class UiController {
     }
 
     public void saveData() {
-        TableColumn<ObservableList<String>, ?> tableColumnByName = getTableColumnByName(tableView, "SITE", 1);
-        assert tableColumnByName != null;
-        log.info(tableColumnByName.getText());
+        JobParameter<?> jobParameter = new JobParameter<>(filePathField.getText(), String.class);
+        Map<String, JobParameter<?>> params = new HashMap<>();
+        params.put("file", jobParameter);
+        JobParameters jobParameters = new JobParameters(params);
+        try {
+            JobExecution jobExecution = jobService.launchJob(job, jobParameters);
+            if (jobExecution.getStatus().equals(BatchStatus.COMPLETED)) {
+                log.info("Job completed successfully");
+            } else {
+                log.info("Job failed with following status {}", jobExecution.getStatus());
+            }
+        } catch (JobParametersInvalidException | JobRestartException | JobInstanceAlreadyCompleteException |
+                 JobExecutionAlreadyRunningException e) {
+            log.error(e.getMessage(), e);
+        }
+
+        // this.getAllDataFromTableView();
+        //temperatures.forEach(temperature -> log.info(temperature.toString()));
     }
 
     @FXML
