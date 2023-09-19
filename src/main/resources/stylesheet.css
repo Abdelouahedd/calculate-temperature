@@ -1,0 +1,21 @@
+/* Your CSS stylesheet.css */
+
+.main-container {
+    -fx-background-color: #e9f5eb; /* Adjust the background color of the main container */
+    -fx-alignment: center; /* Adjust the alignment of the main container */
+}
+
+.input-field {
+    -fx-padding: 5px; /* Adjust padding inside text fields */
+}
+
+Button {
+    -fx-padding: 5px; /* Adjust padding inside buttons */
+}
+
+#tabPane {
+    -fx-background-color: #d0d9d2;
+}
+Tab{
+    -fx-background-color: #d0d9d2;
+}

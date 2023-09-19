@@ -1,43 +1,65 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<!--import style css from ressources-->
+
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<GridPane hgap="10" vgap="10" xmlns:fx="http://javafx.com/fxml/1"
-          xmlns="http://javafx.com/javafx/17.0.2-ea"
-          fx:controller="com.example.csvspring.controller.UiController">
+<VBox xmlns="http://javafx.com/javafx/17.0.2" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.example.csvspring.controller.UiController"
+      prefHeight="600.0" prefWidth="800.0" spacing="10"
+      stylesheets="@./stylesheet.css"
+      styleClass="main-container"
+>
     <padding>
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
     </padding>
-    <HBox spacing="10" GridPane.columnIndex="0">
-        <Label text="File path" GridPane.columnIndex="0"/>
-        <TextField fx:id="filePathField" disable="true" GridPane.columnIndex="1"/>
+
+    <!-- File Path Section -->
+    <HBox spacing="10">
+        <Label text="File Path"/>
+        <TextField fx:id="filePathField" disable="true"/>
         <Button onAction="#onBrowseButtonClick" text="Browse"/>
     </HBox>
-    <VBox fx:id="dropArea" onDragDropped="#handleDragDropped" onDragOver="#handleDragOver" GridPane.columnIndex="0"
-          GridPane.rowIndex="1">
-        <TextArea fx:id="dropAreaLabel" disable="true" text="Drag and Drop files here" wrapText="true"/>
+
+    <!-- Drag and Drop Area -->
+    <VBox fx:id="dropArea" onDragDropped="#handleDragDropped" onDragOver="#handleDragOver">
+        <TextArea fx:id="dropAreaLabel" disable="true" text="Drag and Drop Files Here" wrapText="true"/>
     </VBox>
 
-    <HBox spacing="10" GridPane.columnIndex="0" GridPane.rowIndex="2">
-        <Label text="BP" GridPane.columnIndex="0"/>
-        <TextField fx:id="bp"  GridPane.columnIndex="1" text="65" onKeyPressed="#onBPChange" />
-        <Button fx:id="saveButton" onAction="#onSaveButtonClick" text="Save" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+    <!-- BP Input Section -->
+    <HBox spacing="10">
+        <Label text="BP"/>
+        <TextField fx:id="bp" text="65" onKeyPressed="#onBPChange"/>
+        <Button fx:id="saveButton" onAction="#onSaveButtonClick" text="Save Data to DB"/>
     </HBox>
 
-    <TableView fx:id="tableView" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+    <!-- Date Range Section -->
+    <HBox spacing="10">
+        <Label text="From"/>
+        <TextField fx:id="fromDate" onAction="#onDateChange"/>
+        <Label text="To"/>
+        <TextField fx:id="toDate" onAction="#onDateChange"/>
+        <Button fx:id="calculHDD" onAction="#onCalcButtonClick" text="Calculate HDD"/>
+    </HBox>
+
+    <!-- TabPane for Data Tables -->
+    <TabPane fx:id="tabPane" tabClosingPolicy="UNAVAILABLE">
+        <!-- Tab 1: View Data -->
+        <Tab text="View Data">
+            <VBox>
+                <TableView fx:id="tableView" VBox.vgrow="ALWAYS"/>
+            </VBox>
+        </Tab>
+        <!-- Tab 2: HDD / CDD -->
+        <Tab text="HDD / CDD">
+            <VBox>
+                <TableView fx:id="tableViewHddCdd" VBox.vgrow="ALWAYS"/>
+            </VBox>
+        </Tab>
+    </TabPane>
+
     <padding>
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
     </padding>
-    <columnConstraints>
-        <ColumnConstraints/>
-    </columnConstraints>
-    <rowConstraints>
-        <RowConstraints/>
-        <RowConstraints/>
-        <RowConstraints/>
-        <RowConstraints/>
-    </rowConstraints>
-
-
-</GridPane>
+</VBox>

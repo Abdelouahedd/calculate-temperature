@@ -2,6 +2,7 @@ package com.example.csvspring.controller;
 
 import com.example.csvspring.model.Temperature;
 import com.example.csvspring.service.JobService;
+import com.example.csvspring.util.DatePickerConverter;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
 import javafx.beans.property.SimpleStringProperty;
@@ -9,10 +10,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyEvent;
@@ -34,22 +32,32 @@ import java.util.*;
 @Component
 @Slf4j
 public class UiController {
-    @FXML
-    public  TextField bp;
-    @FXML
-    public Button saveButton;
+
     @Autowired
     private JobService jobService;
     @Autowired
     private Job job;
+    @Autowired
+    private DatePickerConverter converter;
+    @FXML
+    public  TextField bp;
+    @FXML
+    public Button saveButton;
+    @FXML
+    public Button calculHDD;
+    @FXML
+    public TextField fromDate;
+    @FXML
+    public TextField toDate;
+    @FXML
+    public TabPane tabPane;
     @FXML
     private TextField filePathField;
     @FXML
     private TableView<ObservableList<String>> tableView;
+    @FXML
+    private TableView tableViewHddCdd;
 
-    private File csvFile;
-
-    private List<Temperature> temperatures = new LinkedList<>();
 
     @FXML
     public void onBrowseButtonClick() {
@@ -57,7 +65,6 @@ public class UiController {
         fileChooser.setTitle("Open CSV file");
         fileChooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("CSV Files", "*.csv"), new FileChooser.ExtensionFilter("All Files", "*.*"));
         File selectedFile = fileChooser.showOpenDialog(null);
-        csvFile = selectedFile;
         if (selectedFile != null) {
             filePathField.setText(selectedFile.getAbsolutePath());
             try {
@@ -201,7 +208,7 @@ public class UiController {
     }
 
     @FXML
-    public void onSaveButtonClick(ActionEvent actionEvent) {
+    public void onSaveButtonClick() {
         saveData();
     }
 
@@ -209,11 +216,35 @@ public class UiController {
     public void onBPChange(KeyEvent actionEvent) {
         actionEvent.consume();
         bp.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue.matches("\\d*")) {
-                int value = Integer.parseInt(newValue);
+            if (!isValid(newValue) || newValue.isEmpty()) {
+                // Input is not valid, display an error
+                bp.setStyle("-fx-border-color: red;");
+                calculHDD.setDisable(true);
             } else {
-                bp.setText(oldValue);
+                // Input is valid, clear any error styling
+                bp.setStyle(null);
+                calculHDD.setDisable(false);
             }
         });
+    }
+
+    private boolean isValid(String input) {
+        // Implement your validation logic here
+        try {
+            double value = Double.parseDouble(input);
+            // Example: Validate that the input is a positive number
+            return value > 0;
+        } catch (NumberFormatException e) {
+            // Input is not a valid number
+            return false;
+        }
+    }
+
+    public void onCalcButtonClick(ActionEvent actionEvent) {
+    }
+
+    public void onDateChange(ActionEvent actionEvent) {
+        actionEvent.consume();
+        calculHDD.setDisable(fromDate.getText() == null || toDate.getText() == null);
     }
 }
