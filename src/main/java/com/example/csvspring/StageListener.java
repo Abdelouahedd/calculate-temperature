@@ -36,7 +36,6 @@ public class StageListener implements ApplicationListener<StageReadyEvent> {
             Parent root = fxmlLoader.load();
             stage.setScene(new javafx.scene.Scene(root, 800, 600));
             //css
-            stage.getScene().getStylesheets().add("classpath:stylesheet.css");
             stage.show();
         } catch (IOException e) {
             throw new RuntimeException(e);

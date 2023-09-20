@@ -4,15 +4,25 @@ import com.example.csvspring.model.Temperature;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.BatchConfigurationException;
 import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.configuration.support.DefaultBatchConfiguration;
+import org.springframework.batch.core.explore.JobExplorer;
+import org.springframework.batch.core.explore.support.JobExplorerFactoryBean;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.core.launch.support.SimpleJobLauncher;
+import org.springframework.batch.core.launch.support.TaskExecutorJobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.repository.support.JobRepositoryFactoryBean;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.database.JpaCursorItemReader;
 import org.springframework.batch.item.database.JpaItemWriter;
 import org.springframework.batch.item.database.builder.JpaItemWriterBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
@@ -27,11 +37,14 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.orm.jpa.JpaTransactionManager;
 
 import javax.sql.DataSource;
+import java.util.Map;
+import java.util.stream.IntStream;
 
 @Configuration
 @AllArgsConstructor
 @Slf4j
-public class BatchConfiguration {
+//@EnableBatchProcessing
+public class BatchConfiguration extends DefaultBatchConfiguration {
 
     private final DataSource dataSource;
     @PersistenceContext(unitName = "default")
@@ -48,7 +61,7 @@ public class BatchConfiguration {
     @Bean
     public Step step() throws Exception {
         return new StepBuilder("upload-steps", jobRepository())
-                .<Temperature, Temperature>chunk(100, transactionManager())
+                .<Temperature, Temperature>chunk(100, getTransactionManager())
                 .reader(reader(null))
                 .writer(itemWriterJdbc())
                 .build();
@@ -103,21 +116,70 @@ public class BatchConfiguration {
                 .build();
     }
 
+    @SneakyThrows
     @Bean
-    public JobRepository jobRepository() throws Exception {
+    public JobRepository jobRepository() {
         JobRepositoryFactoryBean factory = new JobRepositoryFactoryBean();
         factory.setDataSource(dataSource);
-        factory.setTransactionManager(transactionManager());
-        factory.afterPropertiesSet();
+        factory.setTransactionManager(getTransactionManager());
+        factory.setDatabaseType("h2");
+       factory.afterPropertiesSet();
+    //    factory.setIsolationLevelForCreate("ISOLATION_READ_COMMITTED");
+     //   factory.setTablePrefix("BATCH_");
         return factory.getObject();
+    }
+
+    @Override
+    @SneakyThrows
+    @Bean
+    public JobLauncher jobLauncher() throws BatchConfigurationException {
+        var jobLauncher = new TaskExecutorJobLauncher();
+        jobLauncher.setJobRepository(jobRepository());
+        jobLauncher.afterPropertiesSet();
+        return jobLauncher;
+    }
+
+    @Override
+    @SneakyThrows
+    @Bean
+    public JobExplorer jobExplorer() throws BatchConfigurationException {
+        var jobExplorer = new JobExplorerFactoryBean();
+        jobExplorer.setDataSource(dataSource);
+        jobExplorer.setTransactionManager(getTransactionManager());
+        jobExplorer.setTablePrefix("BATCH_");
+        jobExplorer.afterPropertiesSet();
+        return jobExplorer.getObject();
     }
 
     @Bean
     @Primary
-    public JpaTransactionManager transactionManager() {
+    public JpaTransactionManager getTransactionManager() {
         final JpaTransactionManager tm = new JpaTransactionManager();
         tm.setDataSource(dataSource);
         return tm;
     }
+
+    @Bean
+    @StepScope
+    public JpaCursorItemReader<Temperature> readerJpa(@Value("#{jobParameters['from']}") Long from,
+                                                      @Value("#{jobParameters['to']}") Long to) {
+        var reader = new JpaCursorItemReader<Temperature>();
+        reader.setEntityManagerFactory(entityManager.getEntityManagerFactory());
+        reader.setQueryString("select t from Temperature t where t.id between :from and :to");
+        reader.setParameterValues(Map.of("from", from, "to", to));
+        return reader;
+    }
+
+    @Bean
+    public ItemProcessor<Temperature, Temperature> processor() {
+        return (item) -> {
+            log.info("Processing Temperature: {}", item);
+            IntStream.range(0, item.getHighTemperatures().size())
+                    .mapToDouble(i -> (item.getHighTemperatures().get(i) + item.getLowTemperatures().get(i)) / 2)
+                    .forEach(avg -> item.getAvgTemperatures().add(avg));
+            return item;
+        };
+    }
+
 
 }

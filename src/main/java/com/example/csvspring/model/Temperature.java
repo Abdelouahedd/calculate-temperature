@@ -23,7 +23,9 @@ public class Temperature {
     private Long stationId;
     private String whetherId;
     private String stationName;
+    @Column(name = "whether_year", nullable = false)
     private Long year;
+    @Column(name = "whether_month", nullable = false)
     private Long month;
     @Lob
     @Convert(converter = ConverterTemp.class)
