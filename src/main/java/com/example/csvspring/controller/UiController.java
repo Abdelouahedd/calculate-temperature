@@ -1,8 +1,8 @@
 package com.example.csvspring.controller;
 
-import com.example.csvspring.model.Temperature;
+import com.example.csvspring.dto.AnalysisTemperature;
 import com.example.csvspring.service.JobService;
-import com.example.csvspring.util.DatePickerConverter;
+import com.example.csvspring.util.DataHolder;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
 import javafx.beans.property.SimpleStringProperty;
@@ -15,6 +15,7 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.TransferMode;
+import javafx.scene.layout.GridPane;
 import javafx.stage.FileChooser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;
@@ -22,25 +23,21 @@ import org.springframework.batch.core.repository.JobExecutionAlreadyRunningExcep
 import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
 import org.springframework.batch.core.repository.JobRestartException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.time.Month;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j
 public class UiController {
-
-    @Autowired
-    private JobService jobService;
-    @Autowired
-    private Job job;
-    @Autowired
-    private DatePickerConverter converter;
     @FXML
-    public  TextField bp;
+    public TextField bp;
     @FXML
     public Button saveButton;
     @FXML
@@ -51,12 +48,29 @@ public class UiController {
     public TextField toDate;
     @FXML
     public TabPane tabPane;
+    public Tab tabHdd;
+
     @FXML
     private TextField filePathField;
+
     @FXML
     private TableView<ObservableList<String>> tableView;
+
     @FXML
-    private TableView tableViewHddCdd;
+    private TableView<ObservableList<String>> tableViewHddCdd;
+
+    @Autowired
+    private JobService jobService;
+
+    @Autowired
+    private Job job;
+
+    @Autowired
+    private DataHolder dataHolder;
+
+    @Autowired
+    @Qualifier("calculate_job")
+    private Job jobHddCdd;
 
 
     @FXML
@@ -157,6 +171,104 @@ public class UiController {
         }
     }
 
+    private void populateHdd() {
+        tableViewHddCdd.getColumns().clear();
+        tableViewHddCdd.getItems().clear();
+        createTableOfHddCdd();
+    }
+
+    public void createTableOfHddCdd() {
+        // Sample data for AnalysisTemperature (replace with your data)
+        List<AnalysisTemperature> data = dataHolder.getAnalysisTemperatures();
+        List<List<String>> rows = new ArrayList<>();
+        List<String> header = new ArrayList<>(List.copyOf(extractUniqueYears().stream().map(String::valueOf).toList()));
+        header.add(0, "Months");
+        rows.add(header);
+        // Group by month
+        Map<Month, List<AnalysisTemperature>> map = data.stream().collect(Collectors.groupingBy(AnalysisTemperature::month));
+        // Order map by month
+        map = map.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (oldValue, newValue) -> oldValue, LinkedHashMap::new));
+        // Create the "Months" column
+        TableColumn<ObservableList<String>, String> monthsColumn = new TableColumn<>("Months");
+        monthsColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().get(0)));
+        tableViewHddCdd.getColumns().add(monthsColumn);
+        for (Month month : map.keySet()) {
+            List<String> row = new ArrayList<>();
+            row.add(month.name());
+            for (AnalysisTemperature analysisTemperature : map.get(month)) {
+                row.add(analysisTemperature.value().toString());
+            }
+            rows.add(row);
+        }
+        // Create columns for the values
+        for (int i = 1; i < rows.get(0).size(); i++) {
+            log.info("header: {}", rows.get(0).get(i));
+            final int columnIndex = i; // Capture the column index
+            TableColumn<ObservableList<String>, String> valueColumn = new TableColumn<>(rows.get(0).get(i));
+            valueColumn.setCellValueFactory(cellData -> {
+                List<String> values = cellData.getValue();
+                if (columnIndex < values.size()) {
+                    return new SimpleStringProperty(String.format("%.2f", Double.parseDouble(values.get(columnIndex))));
+                }
+                return new SimpleStringProperty("");
+            });
+            tableViewHddCdd.getColumns().add(valueColumn);
+        }
+        //create avg column
+        TableColumn<ObservableList<String>, String> avgColumn = new TableColumn<>("Avg");
+        avgColumn.setCellValueFactory(cellData -> {
+            List<String> values = cellData.getValue();
+            double avg = values.stream()
+                    .skip(1)
+                    .mapToDouble(Double::parseDouble)
+                    .average()
+                    .orElse(Double.parseDouble("0"));
+            return new SimpleStringProperty(String.format("%.2f", avg));
+        });
+        tableViewHddCdd.getColumns().add(avgColumn);
+        //totol of value by year
+        //group by year
+        Map<Long, List<AnalysisTemperature>> mapYear = data.stream().collect(Collectors.groupingBy(AnalysisTemperature::year));
+        // Order map by year
+        mapYear = mapYear.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (oldValue, newValue) -> oldValue, LinkedHashMap::new));
+        List<String> totalRow = new ArrayList<>();
+        totalRow.add("Total");
+        for (Long year : mapYear.keySet()) {
+            double sum = mapYear.get(year).stream()
+                    .map(AnalysisTemperature::value)
+                    .mapToDouble(Double::doubleValue)
+                    .sum();
+            totalRow.add(String.valueOf(sum));
+        }
+        rows.add(totalRow);
+
+
+        // Add data to the table (skip the header row)
+        for (int i = 1; i < rows.size(); i++) {
+            List<String> row = rows.get(i);
+            log.info("row: {}", row);
+            ObservableList<String> observableRow = FXCollections.observableArrayList(row);
+            tableViewHddCdd.getItems().add(observableRow);
+        }
+        tableViewHddCdd.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+    }
+
+
+    private List<Long> extractUniqueYears() {
+        Set<Long> yearsSet = new HashSet<>();
+        for (AnalysisTemperature analysisTemperature : dataHolder.getAnalysisTemperatures()) {
+            Long year = analysisTemperature.year();
+            yearsSet.add(year);
+        }
+        List<Long> years = new ArrayList<>(yearsSet);
+        Collections.sort(years);
+        return years;
+    }
+
 
     public void handleDragOver(DragEvent event) {
         Dragboard db = event.getDragboard();
@@ -192,7 +304,7 @@ public class UiController {
         JobParameter<?> jobParameter = new JobParameter<>(filePathField.getText(), String.class);
         Map<String, JobParameter<?>> params = new HashMap<>();
         params.put("file", jobParameter);
-        params.put("id", new JobParameter<>(UUID.randomUUID().toString(),String.class));
+        params.put("id", new JobParameter<>(UUID.randomUUID().toString(), String.class));
         JobParameters jobParameters = new JobParameters(params);
         try {
             JobExecution jobExecution = jobService.launchJob(job, jobParameters);
@@ -240,11 +352,26 @@ public class UiController {
         }
     }
 
-    public void onCalcButtonClick(ActionEvent actionEvent) {
+    public void onCalcButtonClick(ActionEvent actionEvent) throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
+        actionEvent.consume();
+        log.info("Calculating HDD/CDD for the period from {} to {} with base point {}", fromDate.getText(), toDate.getText(), bp.getText());
+        JobParameter<?> from = new JobParameter<>(fromDate.getText(), String.class);
+        JobParameter<?> to = new JobParameter<>(toDate.getText(), String.class);
+        JobParameter<?> bp = new JobParameter<>(this.bp.getText(), String.class);
+        JobParameter<String> uuid = new JobParameter<>(UUID.randomUUID().toString(), String.class);
+        JobParameters jobParameters = new JobParameters(Map.of("from", from, "to", to, "bp", bp, "id", uuid));
+
+        jobService.launchJob(jobHddCdd, jobParameters);
+        //switch tab
+        SingleSelectionModel<Tab> selectionModel = tabPane.getSelectionModel();
+        selectionModel.select(tabHdd);
+
+        populateHdd();
     }
 
     public void onDateChange(ActionEvent actionEvent) {
         actionEvent.consume();
         calculHDD.setDisable(fromDate.getText() == null || toDate.getText() == null);
+        log.info("fromDate: {}, toDate: {}", fromDate.getText(), toDate.getText());
     }
 }

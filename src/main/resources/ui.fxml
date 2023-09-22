@@ -52,9 +52,9 @@
             </VBox>
         </Tab>
         <!-- Tab 2: HDD / CDD -->
-        <Tab text="HDD / CDD">
-            <VBox>
-                <TableView fx:id="tableViewHddCdd" VBox.vgrow="ALWAYS"/>
+        <Tab fx:id="tabHdd" text="HDD / CDD">
+            <VBox HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
+                <TableView fx:id="tableViewHddCdd" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS"/>
             </VBox>
         </Tab>
     </TabPane>

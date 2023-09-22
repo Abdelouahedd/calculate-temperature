@@ -1,6 +1,8 @@
 package com.example.csvspring.config;
 
+import com.example.csvspring.dto.AnalysisTemperature;
 import com.example.csvspring.model.Temperature;
+import com.example.csvspring.util.DataHolder;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.AllArgsConstructor;
@@ -16,12 +18,13 @@ import org.springframework.batch.core.explore.support.JobExplorerFactoryBean;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
-import org.springframework.batch.core.launch.support.SimpleJobLauncher;
 import org.springframework.batch.core.launch.support.TaskExecutorJobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.repository.support.JobRepositoryFactoryBean;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.core.step.tasklet.TaskletStep;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JpaCursorItemReader;
 import org.springframework.batch.item.database.JpaItemWriter;
 import org.springframework.batch.item.database.builder.JpaItemWriterBuilder;
@@ -37,18 +40,19 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.orm.jpa.JpaTransactionManager;
 
 import javax.sql.DataSource;
+import java.time.Month;
 import java.util.Map;
 import java.util.stream.IntStream;
 
 @Configuration
 @AllArgsConstructor
 @Slf4j
-//@EnableBatchProcessing
 public class BatchConfiguration extends DefaultBatchConfiguration {
 
     private final DataSource dataSource;
     @PersistenceContext(unitName = "default")
     private final EntityManager entityManager;
+    private final DataHolder dataHolder;
 
     @Bean
     public Job job() throws Exception {
@@ -123,9 +127,7 @@ public class BatchConfiguration extends DefaultBatchConfiguration {
         factory.setDataSource(dataSource);
         factory.setTransactionManager(getTransactionManager());
         factory.setDatabaseType("h2");
-       factory.afterPropertiesSet();
-    //    factory.setIsolationLevelForCreate("ISOLATION_READ_COMMITTED");
-     //   factory.setTablePrefix("BATCH_");
+        factory.afterPropertiesSet();
         return factory.getObject();
     }
 
@@ -165,21 +167,50 @@ public class BatchConfiguration extends DefaultBatchConfiguration {
                                                       @Value("#{jobParameters['to']}") Long to) {
         var reader = new JpaCursorItemReader<Temperature>();
         reader.setEntityManagerFactory(entityManager.getEntityManagerFactory());
-        reader.setQueryString("select t from Temperature t where t.id between :from and :to");
+        reader.setQueryString("select t from Temperature t where t.year between :from and :to");
         reader.setParameterValues(Map.of("from", from, "to", to));
         return reader;
     }
 
     @Bean
-    public ItemProcessor<Temperature, Temperature> processor() {
+    @StepScope
+    public ItemProcessor<Temperature, AnalysisTemperature> processor(@Value("#{jobParameters['bp']}") Double bp) {
         return (item) -> {
-            log.info("Processing Temperature: {}", item);
             IntStream.range(0, item.getHighTemperatures().size())
                     .mapToDouble(i -> (item.getHighTemperatures().get(i) + item.getLowTemperatures().get(i)) / 2)
                     .forEach(avg -> item.getAvgTemperatures().add(avg));
-            return item;
+
+            Double sum = 0.0;
+            for (int i = 0; i < item.getAvgTemperatures().size(); i++) {
+                sum += item.getAvgTemperatures().get(i);
+            }
+            return new AnalysisTemperature(item.getYear(), Month.of(Math.toIntExact(item.getMonth())), sum / item.getAvgTemperatures().size());
         };
     }
 
+    @Bean
+    public ItemWriter<AnalysisTemperature> itemWriter() {
+        dataHolder.clear();
+        return (items) -> items.forEach(dataHolder::add);
+    }
+
+    @Bean
+    public TaskletStep step2() throws Exception {
+        return new StepBuilder("calculate", jobRepository())
+                .<Temperature, AnalysisTemperature>chunk(100, getTransactionManager())
+                .reader(readerJpa(null, null))
+                .processor(processor(null))
+                .writer(itemWriter())
+                .build();
+    }
+
+
+    @Bean(name = "calculate_job")
+    public Job job2() throws Exception {
+        return new JobBuilder("calculate", jobRepository())
+                .incrementer(new RunIdIncrementer())
+                .start(step2())
+                .build();
+    }
 
 }
