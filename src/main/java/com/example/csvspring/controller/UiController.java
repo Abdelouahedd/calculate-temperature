@@ -15,7 +15,6 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.TransferMode;
-import javafx.scene.layout.GridPane;
 import javafx.stage.FileChooser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.*;
@@ -57,7 +56,10 @@ public class UiController {
     private TableView<ObservableList<String>> tableView;
 
     @FXML
-    private TableView<ObservableList<String>> tableViewHddCdd;
+    private TableView<ObservableList<String>> tableViewHdd;
+
+    @FXML
+    private TableView<ObservableList<String>> tableViewCdd;
 
     @Autowired
     private JobService jobService;
@@ -172,12 +174,13 @@ public class UiController {
     }
 
     private void populateHdd() {
-        tableViewHddCdd.getColumns().clear();
-        tableViewHddCdd.getItems().clear();
-        createTableOfHddCdd();
+        tableViewHdd.getColumns().clear();
+        tableViewHdd.getItems().clear();
+        createTableOfHddCdd(tableViewHdd,Double.parseDouble(bp.getText()),true);
+        createTableOfHddCdd(tableViewCdd,Double.parseDouble(bp.getText()),false);
     }
 
-    public void createTableOfHddCdd() {
+    public void createTableOfHddCdd(TableView<ObservableList<String>> tableView,Double bp,Boolean isHdd) {
         // Sample data for AnalysisTemperature (replace with your data)
         List<AnalysisTemperature> data = dataHolder.getAnalysisTemperatures();
         List<List<String>> rows = new ArrayList<>();
@@ -193,12 +196,13 @@ public class UiController {
         // Create the "Months" column
         TableColumn<ObservableList<String>, String> monthsColumn = new TableColumn<>("Months");
         monthsColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().get(0)));
-        tableViewHddCdd.getColumns().add(monthsColumn);
+        tableView.getColumns().add(monthsColumn);
         for (Month month : map.keySet()) {
             List<String> row = new ArrayList<>();
             row.add(month.name());
             for (AnalysisTemperature analysisTemperature : map.get(month)) {
-                row.add(analysisTemperature.value().toString());
+                Double val = isHdd ? getHdd(analysisTemperature.value(), bp) : getCdd(analysisTemperature.value(), bp);
+                row.add(val.toString());
             }
             rows.add(row);
         }
@@ -214,7 +218,7 @@ public class UiController {
                 }
                 return new SimpleStringProperty("");
             });
-            tableViewHddCdd.getColumns().add(valueColumn);
+            tableView.getColumns().add(valueColumn);
         }
         //create avg column
         TableColumn<ObservableList<String>, String> avgColumn = new TableColumn<>("Avg");
@@ -227,7 +231,7 @@ public class UiController {
                     .orElse(Double.parseDouble("0"));
             return new SimpleStringProperty(String.format("%.2f", avg));
         });
-        tableViewHddCdd.getColumns().add(avgColumn);
+        tableView.getColumns().add(avgColumn);
         //totol of value by year
         //group by year
         Map<Long, List<AnalysisTemperature>> mapYear = data.stream().collect(Collectors.groupingBy(AnalysisTemperature::year));
@@ -239,8 +243,7 @@ public class UiController {
         totalRow.add("Total");
         for (Long year : mapYear.keySet()) {
             double sum = mapYear.get(year).stream()
-                    .map(AnalysisTemperature::value)
-                    .mapToDouble(Double::doubleValue)
+                    .mapToDouble(temperature-> isHdd ? getHdd(temperature.value(),bp) : getCdd(temperature.value(), bp))
                     .sum();
             totalRow.add(String.valueOf(sum));
         }
@@ -252,11 +255,18 @@ public class UiController {
             List<String> row = rows.get(i);
             log.info("row: {}", row);
             ObservableList<String> observableRow = FXCollections.observableArrayList(row);
-            tableViewHddCdd.getItems().add(observableRow);
+            tableView.getItems().add(observableRow);
         }
-        tableViewHddCdd.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
     }
 
+    Double getHdd(Double avg, Double bp) {
+        return Math.max(bp - avg, 0);
+    }
+
+    Double getCdd(Double avg, Double bp) {
+        return Math.max(avg - bp, 0);
+    }
 
     private List<Long> extractUniqueYears() {
         Set<Long> yearsSet = new HashSet<>();

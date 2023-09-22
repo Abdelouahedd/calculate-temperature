@@ -53,8 +53,18 @@
         </Tab>
         <!-- Tab 2: HDD / CDD -->
         <Tab fx:id="tabHdd" text="HDD / CDD">
-            <VBox HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
-                <TableView fx:id="tableViewHddCdd" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS"/>
+            <VBox alignment="CENTER" spacing="10" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
+                <padding>
+                    <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
+                </padding>
+                <Label text="Heating Degree Days"/>
+                <TableView fx:id="tableViewHdd" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS"/>
+
+                <padding>
+                    <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
+                </padding>
+                <Label text="Cooling Degree Days"/>
+                <TableView fx:id="tableViewCdd" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS"/>
             </VBox>
         </Tab>
     </TabPane>
