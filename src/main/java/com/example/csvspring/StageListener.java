@@ -34,7 +34,7 @@ public class StageListener implements ApplicationListener<StageReadyEvent> {
             FXMLLoader fxmlLoader = new FXMLLoader(ui);
             fxmlLoader.setControllerFactory(applicationContext::getBean);
             Parent root = fxmlLoader.load();
-            stage.setScene(new javafx.scene.Scene(root, 800, 600));
+            stage.setScene(new javafx.scene.Scene(root, 1000, 800));
             //css
             stage.show();
         } catch (IOException e) {

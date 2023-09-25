@@ -2,45 +2,39 @@
 
 <!--import style css from ressources-->
 
-<?import javafx.geometry.Insets?>
+<?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<VBox xmlns="http://javafx.com/javafx/17.0.2" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.example.csvspring.controller.UiController"
-      prefHeight="600.0" prefWidth="800.0" spacing="10"
-      stylesheets="@./stylesheet.css"
-      styleClass="main-container"
->
+
+<VBox prefHeight="600.0" prefWidth="800.0" spacing="10" styleClass="main-container" stylesheets="@./stylesheet.css" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.csvspring.controller.UiController">
     <padding>
-        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
     </padding>
 
     <!-- File Path Section -->
     <HBox spacing="10">
-        <Label text="File Path"/>
-        <TextField fx:id="filePathField" disable="true"/>
-        <Button onAction="#onBrowseButtonClick" text="Browse"/>
+        <Label text="File Path" />
+        <TextField fx:id="filePathField" disable="true" />
+        <Button onAction="#onBrowseButtonClick" text="Browse" />
     </HBox>
 
     <!-- Drag and Drop Area -->
-    <VBox fx:id="dropArea" onDragDropped="#handleDragDropped" onDragOver="#handleDragOver">
-        <TextArea fx:id="dropAreaLabel" disable="true" text="Drag and Drop Files Here" wrapText="true"/>
+    <VBox fx:id="dropArea" onDragDropped="#handleDragDropped" onDragOver="#handleDragOver" spacing="10">
+        <TextArea fx:id="dropAreaLabel" disable="true" prefWidth="300" prefHeight="300" text="Drag and Drop Files Here" wrapText="true" VBox.vgrow="ALWAYS" />
+        <Button fx:id="saveButton" disable="true" onAction="#onSaveButtonClick" text="Save Data to DB" />
     </VBox>
 
-    <!-- BP Input Section -->
-    <HBox spacing="10">
-        <Label text="BP"/>
-        <TextField fx:id="bp" text="65" onKeyPressed="#onBPChange"/>
-        <Button fx:id="saveButton" onAction="#onSaveButtonClick" text="Save Data to DB"/>
-    </HBox>
 
-    <!-- Date Range Section -->
-    <HBox spacing="10">
-        <Label text="From"/>
-        <TextField fx:id="fromDate" onAction="#onDateChange"/>
-        <Label text="To"/>
-        <TextField fx:id="toDate" onAction="#onDateChange"/>
-        <Button fx:id="calculHDD" onAction="#onCalcButtonClick" text="Calculate HDD"/>
+    <HBox fx:id="calHbox" spacing="10">
+        <!-- BP Input Section -->
+        <Label text="BP" />
+        <TextField fx:id="bp" text="65" />
+        <!-- Date Range Section -->
+        <Label text="From" />
+        <TextField fx:id="fromDate" />
+        <Label text="To" />
+        <TextField fx:id="toDate" />
+        <Button fx:id="calculHDD" onAction="#onCalcButtonClick" text="Calculate HDD" />
     </HBox>
 
     <!-- TabPane for Data Tables -->
@@ -48,28 +42,28 @@
         <!-- Tab 1: View Data -->
         <Tab text="View Data">
             <VBox>
-                <TableView fx:id="tableView" VBox.vgrow="ALWAYS"/>
+                <TableView fx:id="tableView" VBox.vgrow="ALWAYS" />
             </VBox>
         </Tab>
         <!-- Tab 2: HDD / CDD -->
         <Tab fx:id="tabHdd" text="HDD / CDD">
             <VBox alignment="CENTER" spacing="10" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
                 <padding>
-                    <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
+                    <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
                 </padding>
-                <Label text="Heating Degree Days"/>
-                <TableView fx:id="tableViewHdd" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS"/>
+                <Label text="Heating Degree Days" />
+                <TableView fx:id="tableViewHdd" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS" />
+                <Label text="Cooling Degree Days" />
+                <TableView fx:id="tableViewCdd" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS" />
 
                 <padding>
-                    <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
+                    <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
                 </padding>
-                <Label text="Cooling Degree Days"/>
-                <TableView fx:id="tableViewCdd" VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS"/>
             </VBox>
         </Tab>
     </TabPane>
 
     <padding>
-        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
     </padding>
 </VBox>

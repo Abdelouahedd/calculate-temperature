@@ -19,3 +19,19 @@ Button {
 Tab{
     -fx-background-color: #d0d9d2;
 }
+/*add border color black to this id dropArea*/
+#dropArea {
+    -fx-border-color: black;
+    -fx-border-width: 1px;
+    -fx-border-style: solid;
+    -fx-padding: 20px;
+}
+
+#calHbox{
+    -fx-background-color: #d0d9d2;
+    -fx-border-color: black;
+    -fx-border-width: 1px;
+    -fx-border-style: solid;
+    -fx-padding: 20px;
+
+}

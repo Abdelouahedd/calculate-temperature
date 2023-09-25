@@ -1,8 +1,7 @@
 package com.example.csvspring.controller;
 
 import com.example.csvspring.dto.AnalysisTemperature;
-import com.example.csvspring.service.JobService;
-import com.example.csvspring.util.DataHolder;
+import com.example.csvspring.service.TemperatureService;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
 import javafx.beans.property.SimpleStringProperty;
@@ -10,31 +9,31 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.input.TransferMode;
 import javafx.stage.FileChooser;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.batch.core.*;
-import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
-import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
-import org.springframework.batch.core.repository.JobRestartException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
+import javax.swing.text.DateFormatter;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URL;
+import java.text.DateFormat;
+import java.time.LocalDate;
 import java.time.Month;
 import java.util.*;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 @Component
 @Slf4j
-public class UiController {
+public class UiController implements Initializable {
     @FXML
     public TextField bp;
     @FXML
@@ -47,6 +46,7 @@ public class UiController {
     public TextField toDate;
     @FXML
     public TabPane tabPane;
+    @FXML
     public Tab tabHdd;
 
     @FXML
@@ -62,18 +62,14 @@ public class UiController {
     private TableView<ObservableList<String>> tableViewCdd;
 
     @Autowired
-    private JobService jobService;
+    private TemperatureService temperatureService;
 
-    @Autowired
-    private Job job;
-
-    @Autowired
-    private DataHolder dataHolder;
-
-    @Autowired
-    @Qualifier("calculate_job")
-    private Job jobHddCdd;
-
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        checkDoubleValue(fromDate);
+        checkDoubleValue(toDate);
+        checkDoubleValue(bp);
+    }
 
     @FXML
     public void onBrowseButtonClick() {
@@ -83,6 +79,7 @@ public class UiController {
         File selectedFile = fileChooser.showOpenDialog(null);
         if (selectedFile != null) {
             filePathField.setText(selectedFile.getAbsolutePath());
+            saveButton.setDisable(false);
             try {
                 populateTable(selectedFile);
             } catch (IOException | CsvException ioException) {
@@ -90,7 +87,6 @@ public class UiController {
             }
         }
     }
-
 
     private void populateTable(File csvFile) throws IOException, CsvException {
         tableView.getColumns().clear();
@@ -173,18 +169,18 @@ public class UiController {
         }
     }
 
-    private void populateHdd() {
+    private void populateHddAndCdd() {
         tableViewHdd.getColumns().clear();
         tableViewHdd.getItems().clear();
-        createTableOfHddCdd(tableViewHdd,Double.parseDouble(bp.getText()),true);
-        createTableOfHddCdd(tableViewCdd,Double.parseDouble(bp.getText()),false);
+        createTableOfHddCdd(tableViewHdd, Double.parseDouble(bp.getText()), true);
+        createTableOfHddCdd(tableViewCdd, Double.parseDouble(bp.getText()), false);
     }
 
-    public void createTableOfHddCdd(TableView<ObservableList<String>> tableView,Double bp,Boolean isHdd) {
+    public void createTableOfHddCdd(TableView<ObservableList<String>> tableView, Double bp, Boolean isHdd) {
         // Sample data for AnalysisTemperature (replace with your data)
-        List<AnalysisTemperature> data = dataHolder.getAnalysisTemperatures();
+        List<AnalysisTemperature> data = temperatureService.getAnalysisTemperatures();
         List<List<String>> rows = new ArrayList<>();
-        List<String> header = new ArrayList<>(List.copyOf(extractUniqueYears().stream().map(String::valueOf).toList()));
+        List<String> header = new ArrayList<>(List.copyOf(temperatureService.extractUniqueYears().stream().map(String::valueOf).toList()));
         header.add(0, "Months");
         rows.add(header);
         // Group by month
@@ -201,7 +197,7 @@ public class UiController {
             List<String> row = new ArrayList<>();
             row.add(month.name());
             for (AnalysisTemperature analysisTemperature : map.get(month)) {
-                Double val = isHdd ? getHdd(analysisTemperature.value(), bp) : getCdd(analysisTemperature.value(), bp);
+                Double val = isHdd ? temperatureService.getHdd(analysisTemperature.value(), bp) : temperatureService.getCdd(analysisTemperature.value(), bp);
                 row.add(val.toString());
             }
             rows.add(row);
@@ -243,7 +239,7 @@ public class UiController {
         totalRow.add("Total");
         for (Long year : mapYear.keySet()) {
             double sum = mapYear.get(year).stream()
-                    .mapToDouble(temperature-> isHdd ? getHdd(temperature.value(),bp) : getCdd(temperature.value(), bp))
+                    .mapToDouble(temperature -> isHdd ? temperatureService.getHdd(temperature.value(), bp) : temperatureService.getCdd(temperature.value(), bp))
                     .sum();
             totalRow.add(String.valueOf(sum));
         }
@@ -259,26 +255,6 @@ public class UiController {
         }
         tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
     }
-
-    Double getHdd(Double avg, Double bp) {
-        return Math.max(bp - avg, 0);
-    }
-
-    Double getCdd(Double avg, Double bp) {
-        return Math.max(avg - bp, 0);
-    }
-
-    private List<Long> extractUniqueYears() {
-        Set<Long> yearsSet = new HashSet<>();
-        for (AnalysisTemperature analysisTemperature : dataHolder.getAnalysisTemperatures()) {
-            Long year = analysisTemperature.year();
-            yearsSet.add(year);
-        }
-        List<Long> years = new ArrayList<>(yearsSet);
-        Collections.sort(years);
-        return years;
-    }
-
 
     public void handleDragOver(DragEvent event) {
         Dragboard db = event.getDragboard();
@@ -302,6 +278,7 @@ public class UiController {
             success = true;
             for (File file : db.getFiles()) {
                 filePathField.setText(file.getAbsolutePath());
+                saveButton.setDisable(false);
                 populateTable(file);
             }
         }
@@ -309,79 +286,67 @@ public class UiController {
         event.consume();
     }
 
-
-    public void saveData() {
-        JobParameter<?> jobParameter = new JobParameter<>(filePathField.getText(), String.class);
-        Map<String, JobParameter<?>> params = new HashMap<>();
-        params.put("file", jobParameter);
-        params.put("id", new JobParameter<>(UUID.randomUUID().toString(), String.class));
-        JobParameters jobParameters = new JobParameters(params);
-        try {
-            JobExecution jobExecution = jobService.launchJob(job, jobParameters);
-            if (jobExecution.getStatus().equals(BatchStatus.COMPLETED)) {
-                log.info("Job completed successfully");
-            } else {
-                log.info("Job failed with following status {}", jobExecution.getStatus());
-            }
-        } catch (JobParametersInvalidException | JobRestartException | JobInstanceAlreadyCompleteException |
-                 JobExecutionAlreadyRunningException e) {
-            log.error(e.getMessage(), e);
-        }
-    }
-
     @FXML
     public void onSaveButtonClick() {
-        saveData();
+        temperatureService.saveData(filePathField.getText());
     }
 
-    @FXML
-    public void onBPChange(KeyEvent actionEvent) {
-        actionEvent.consume();
-        bp.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (!isValid(newValue) || newValue.isEmpty()) {
-                // Input is not valid, display an error
-                bp.setStyle("-fx-border-color: red;");
-                calculHDD.setDisable(true);
-            } else {
-                // Input is valid, clear any error styling
-                bp.setStyle(null);
-                calculHDD.setDisable(false);
+
+    public void checkDoubleValue(TextField textField) {
+        UnaryOperator<TextFormatter.Change> integerFormatter = change -> {
+            try {
+                if (change.getControlNewText().isEmpty()) {
+                    return change;
+                }
+                double value = Double.parseDouble(change.getControlNewText());
+                if (value < 0) {
+                    textField.setStyle("-fx-text-fill: red;-fx-border-color: red;");
+                    return null;
+                }
+            } catch (NumberFormatException e) {
+                textField.setStyle("-fx-text-fill: red;-fx-border-color: red;");
+                return null;
             }
-        });
+            textField.setStyle("-fx-text-fill: green;-fx-border-color: green;");
+            return change;
+        };
+        textField.setTextFormatter(new TextFormatter<>(integerFormatter));
     }
 
-    private boolean isValid(String input) {
-        // Implement your validation logic here
-        try {
-            double value = Double.parseDouble(input);
-            // Example: Validate that the input is a positive number
-            return value > 0;
-        } catch (NumberFormatException e) {
-            // Input is not a valid number
-            return false;
-        }
-    }
-
-    public void onCalcButtonClick(ActionEvent actionEvent) throws JobInstanceAlreadyCompleteException, JobExecutionAlreadyRunningException, JobParametersInvalidException, JobRestartException {
+    public void onCalcButtonClick(ActionEvent actionEvent) {
         actionEvent.consume();
-        log.info("Calculating HDD/CDD for the period from {} to {} with base point {}", fromDate.getText(), toDate.getText(), bp.getText());
-        JobParameter<?> from = new JobParameter<>(fromDate.getText(), String.class);
-        JobParameter<?> to = new JobParameter<>(toDate.getText(), String.class);
-        JobParameter<?> bp = new JobParameter<>(this.bp.getText(), String.class);
-        JobParameter<String> uuid = new JobParameter<>(UUID.randomUUID().toString(), String.class);
-        JobParameters jobParameters = new JobParameters(Map.of("from", from, "to", to, "bp", bp, "id", uuid));
-
-        jobService.launchJob(jobHddCdd, jobParameters);
+        //get this year from local date
+        if (fromDate.getText().isEmpty() || toDate.getText().isEmpty() || bp.getText().isEmpty()) {
+            createAlert("Please fill all the fields (from, to, bp)");
+            return;
+        } else {
+            boolean isValideDateRange = Integer.parseInt(fromDate.getText()) < Integer.parseInt(toDate.getText())
+                    && Integer.parseInt(fromDate.getText()) >= 1900
+                    && Integer.parseInt(toDate.getText()) <= LocalDate.now().getYear();
+            log.info("isValideDateRange: {}", isValideDateRange);
+            if (!isValideDateRange) {
+                log.info("from: {}, to: {}", fromDate.getText(), toDate.getText());
+                createAlert("Please check your input (from, to) : from < to and from > 1900 and to < current year !!");
+                return;
+            } else if (Double.parseDouble(bp.getText()) < 0) {
+                createAlert("Please check your input (bp) : bp > 0");
+                return;
+            }
+        }
+        temperatureService.calculateAvgOfAvgTemperatures(fromDate.getText(), toDate.getText());
         //switch tab
         SingleSelectionModel<Tab> selectionModel = tabPane.getSelectionModel();
         selectionModel.select(tabHdd);
 
-        populateHdd();
+        populateHddAndCdd();
     }
 
-    public void onDateChange(ActionEvent actionEvent) {
-        actionEvent.consume();
-        calculHDD.setDisable(fromDate.getText() == null || toDate.getText() == null);
-        log.info("fromDate: {}, toDate: {}", fromDate.getText(), toDate.getText());
+
+    public void createAlert(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Error");
+        alert.setHeaderText("Error");
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

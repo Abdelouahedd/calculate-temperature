@@ -10,6 +10,8 @@ spring:
       settings:
         trace: true
   datasource:
+#    url jdbc for h2 in file mode for windows
+#    url: jdbc:h2:file:C:/Users/ae/Downloads/upwork/temperature;DB_CLOSE_ON_EXIT=FALSE
     url: jdbc:h2:file:/home/ae/Downloads/upwork/temperature;DB_CLOSE_ON_EXIT=FALSE
     username: sa
     password: pass@word
