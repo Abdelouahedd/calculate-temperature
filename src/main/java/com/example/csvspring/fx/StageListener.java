@@ -1,4 +1,4 @@
-package com.example.csvspring;
+package com.example.csvspring.fx;
 
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;

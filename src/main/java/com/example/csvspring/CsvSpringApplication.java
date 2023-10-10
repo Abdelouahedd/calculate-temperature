@@ -1,7 +1,7 @@
 package com.example.csvspring;
 
+import com.example.csvspring.fx.JavaFxApplication;
 import javafx.application.Application;
-import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
