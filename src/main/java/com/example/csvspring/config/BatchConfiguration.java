@@ -41,6 +41,7 @@ import org.springframework.orm.jpa.JpaTransactionManager;
 
 import javax.sql.DataSource;
 import java.time.Month;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 
@@ -212,5 +213,38 @@ public class BatchConfiguration extends DefaultBatchConfiguration {
                 .start(step2())
                 .build();
     }
+
+    /*The Part 2 is just ability to choose Different Cities Over different years*/
+
+    @Bean
+    @StepScope
+    public JpaCursorItemReader<Temperature> readerJpa2(@Value("#{jobParameters['from']}") Long from,
+                                                       @Value("#{jobParameters['to']}") Long to,
+                                                       @Value("#{jobParameters['cities']}") List<String> cities) {
+        var reader = new JpaCursorItemReader<Temperature>();
+        reader.setEntityManagerFactory(entityManager.getEntityManagerFactory());
+        reader.setQueryString("select t from Temperature t where t.year between :from and :to and t.stationName in :cities");
+        reader.setParameterValues(Map.of("from", from, "to", to, "cities", cities));
+        return reader;
+    }
+
+    @Bean(name = "step-city")
+    public TaskletStep step3() throws Exception {
+        return new StepBuilder("calculate", jobRepository())
+                .<Temperature, AnalysisTemperature>chunk(100, getTransactionManager())
+                .reader(readerJpa2(null, null, null))
+                .processor(processor(null))
+                .writer(itemWriter())
+                .build();
+    }
+
+    @Bean(name = "calculate_job2")
+    public Job job3() throws Exception {
+        return new JobBuilder("calculate", jobRepository())
+                .incrementer(new RunIdIncrementer())
+                .start(step3())
+                .build();
+    }
+
 
 }

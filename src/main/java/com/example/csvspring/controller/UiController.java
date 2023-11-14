@@ -16,15 +16,19 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.stage.FileChooser;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.DefaultIndexedColorMap;
+import org.apache.poi.xssf.usermodel.XSSFColor;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.controlsfx.control.CheckComboBox;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import javax.swing.text.DateFormatter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
-import java.text.DateFormat;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.*;
@@ -48,6 +52,8 @@ public class UiController implements Initializable {
     public TabPane tabPane;
     @FXML
     public Tab tabHdd;
+    public CheckComboBox<String> citiesCheckBox;
+    public Button export;
 
     @FXML
     private TextField filePathField;
@@ -69,6 +75,7 @@ public class UiController implements Initializable {
         checkDoubleValue(fromDate);
         checkDoubleValue(toDate);
         checkDoubleValue(bp);
+        createCheckBox();
     }
 
     @FXML
@@ -333,12 +340,16 @@ public class UiController implements Initializable {
                 return;
             }
         }
-        temperatureService.calculateAvgOfAvgTemperatures(fromDate.getText(), toDate.getText());
+        temperatureService.calculate(fromDate.getText(), toDate.getText(), citiesCheckBox.getCheckModel().getCheckedItems());
         //switch tab
         SingleSelectionModel<Tab> selectionModel = tabPane.getSelectionModel();
         selectionModel.select(tabHdd);
 
         populateHddAndCdd();
+    }
+
+    public void createCheckBox() {
+        citiesCheckBox.getItems().addAll(temperatureService.getCities());
     }
 
 
@@ -349,4 +360,87 @@ public class UiController implements Initializable {
         alert.setContentText(message);
         alert.showAndWait();
     }
+
+    //export content of table view to excel file using apache poi*
+    public void exportExcel(ActionEvent actionEvent) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save Excel File");
+        LocalDate today = LocalDate.now();
+
+        fileChooser.setInitialFileName(String.format("exported_data-%s.xlsx", today));
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files", "*.xlsx"));
+        File file = fileChooser.showSaveDialog(null);
+
+        try (Workbook workbook = new XSSFWorkbook()) {
+            createSheet(workbook, "HDD", tableViewHdd);
+            createSheet(workbook, "CDD", tableViewCdd);
+            // Write the workbook to a file
+            try (FileOutputStream fileOut = new FileOutputStream(file)) {
+                log.info("file path --->  {} ", file.getAbsolutePath());
+                workbook.write(fileOut);
+            }
+
+            System.out.println("Exported to HDD");
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    private void createSheet(Workbook workbook, String title, TableView<ObservableList<String>> tableView) {
+        Sheet sheet = workbook.createSheet(title);
+
+        // Create header row
+        Row row = sheet.createRow(0);
+        for (int j = 0; j < tableView.getColumns().size(); j++) {
+            row.createCell(j).setCellValue(tableView.getColumns().get(j).getText());
+            if (j == 0) {
+                sheet.setColumnWidth(j, 5000);
+            } else {
+                sheet.setColumnWidth(j, 3000);
+                CellStyle style = workbook.createCellStyle();
+                style.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
+                style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                row.getCell(j).setCellStyle(style);
+            }
+        }
+
+        // Create data rows
+        for (int i = 0; i < tableView.getItems().size(); i++) {
+            row = sheet.createRow(i + 1);
+            for (int j = 0; j < tableView.getColumns().size(); j++) {
+                if (tableView.getColumns().get(j).getCellData(i) != null) {
+                    row.createCell(j).setCellValue(tableView.getColumns().get(j).getCellData(i).toString());
+                } else {
+                    row.createCell(j).setCellValue("");
+                }
+                //change style of the last row
+                if (j != 0 && i == tableView.getItems().size() - 1) {
+                    CellStyle style = workbook.createCellStyle();
+                    style.setFillForegroundColor(IndexedColors.RED.getIndex());
+                    style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                    //chnage size font
+                    createFont(workbook, style, (short) 12);
+                    row.getCell(j).setCellStyle(style);
+                }
+                if (j == 0 && i != tableView.getItems().size() - 1) {
+                    CellStyle style = workbook.createCellStyle();
+                    style.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
+                    style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                    row.getCell(j).setCellStyle(style);
+                }
+
+            }
+        }
+    }
+
+    private static void createFont(Workbook workbook, CellStyle style, short size) {
+        Font font = workbook.createFont();
+        font.setFontHeightInPoints(size);
+        font.setFontName("Arial");
+        style.setFont(font);
+    }
+
+
 }
